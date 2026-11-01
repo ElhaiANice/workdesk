@@ -46,11 +46,17 @@ function row(t) {
 }
 const group = (name, items) => `<div class="group"><h3>${name} <span class="count">${items.length}</span></h3>${items.length ? items.map(row).join('') : '<div class="empty">Nothing here.</div>'}</div>`;
 
-// Epics first, each followed by its own children in the same column; other children after.
-// Cards stay exactly in their stored (dragged) order. A story is only drawn indented when its epic is in the same column.
+// A story whose epic is in the same column is drawn directly under that epic (indented); everything else keeps its stored (dragged) order.
 function nested(list) {
   const keys = new Set(list.filter((t) => t.type === 'epic').map(epicKey));
-  return list.map((t) => [t, t.type !== 'epic' && !!t.epic && keys.has(t.epic)]);
+  const under = (t) => t.type !== 'epic' && !!t.epic && keys.has(t.epic);
+  const out = [];
+  for (const t of list) {
+    if (under(t)) continue;
+    out.push([t, false]);
+    if (t.type === 'epic') for (const c of list) if (under(c) && c.epic === epicKey(t)) out.push([c, true]);
+  }
+  return out;
 }
 
 // Progress of an epic across its stories: counts per status and % done.
