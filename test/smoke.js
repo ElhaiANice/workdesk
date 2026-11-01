@@ -100,7 +100,7 @@ const tool = async (name, args) => { const r = await rpc('tools/call', { name, a
   await new Promise((r) => mock.listen(0, '127.0.0.1', r));
 
   // --- HTTP server
-  const port = 4900 + Math.floor(Math.random() * 90);
+  const port = 7000 + Math.floor(Math.random() * 90); // and port + 100: clear of ports fetch refuses (e.g. 5060/5061) and of 4321
   const envFile = path.join(tmp, '..', 'wd-env-' + process.pid + '.env'); // keeps the settings test away from the real .env
   const srv = spawn('node', [path.join(root, 'server.js')], { env: { ...process.env, WORKDESK_SYNC: 'off', WORKDESK_ENV: envFile, WORKDESK_GH: path.join(__dirname, 'fake-gh.js'), WORKDESK_STATE: path.join(tmp, '..', 'wd-state-' + process.pid + '.json'), PORT: port, JIRA_BASE_URL: `http://127.0.0.1:${mock.address().port}`, JIRA_PAT: 'tok' } });
   await new Promise((r) => srv.stdout.once('data', r));
