@@ -1,0 +1,17 @@
+# secrets and settings
+.env
+# your task data and the app's local state (never part of the source)
+tasks/
+tasks.*/
+old-local-app-data/
+backup/
+.workdesk-sync.json
+.workdesk-schema
+update.log
+# local tooling config
+.mcp.json
+.public-check-deny
+# build output
+dist/
+node_modules/
+desktop/src-tauri/target/

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WorkDesk</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="tray" id="tray" aria-hidden="true"><div class="tab"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg><span>Archive</span></div><div class="drop">Drop here<br>to archive</div></div>
+<div class="app">
+  <nav class="side" aria-label="Views">
+    <div class="brand"><img class="logo" src="/logo.svg" alt="" width="22" height="22"> WorkDesk</div>
+    <button class="navbtn" data-view="board">Overview <span class="n" id="n-board"></span></button>
+    <button class="navbtn" data-view="epics">Epics <span class="n" id="n-epics"></span></button>
+    <button class="navbtn" data-view="list">List <span class="n" id="n-list"></span></button>
+    <button class="navbtn" data-view="done">Done <span class="n" id="n-done"></span></button>
+    <button class="navbtn" data-view="archive">Archive <span class="n" id="n-archive"></span></button>
+    <div class="sep">Integrations</div>
+    <button class="navbtn" data-view="jira">Jira</button>
+    <div class="sep">App</div>
+    <button class="navbtn" data-view="settings">Settings</button>
+    <div class="hint">N new task<br>R refresh<br>/ search<br>Esc close</div>
+  </nav>
+  <main class="pane" id="pane">
+    <form class="quick" id="quick" autocomplete="off">
+      <input id="quick-input" placeholder="Add a task: review PR 412 for Dana, validate deploy ABC-2481…" aria-label="Quick add">
+      <button class="btn" type="submit">Add</button>
+      <button class="btn ghost" type="button" id="refresh" title="Reload tasks and sync Jira (R)" aria-label="Refresh"><svg class="spin" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="#2684FF" d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0Z"/></svg> Refresh</button>
+    </form>
+    <div class="parse" id="parse" aria-live="polite"></div>
+    <div class="filters" id="filters" hidden>
+      <input id="f-q" type="search" placeholder="Search…" aria-label="Search">
+      <select id="f-type" aria-label="Type"><option value="">All types</option></select>
+      <select id="f-epic" aria-label="Epic"><option value="">Any epic</option></select>
+      <label class="chip-f"><input type="checkbox" id="f-imp"><span>⚑ Important <b id="n-imp"></b></span></label>
+      <div class="presets" id="presets" hidden></div>
+    </div>
+    <div id="list" class="list"></div>
+    <aside class="drawer" id="drawer" hidden></aside>
+  </main>
+</div>
+<div class="bulk" id="bulk" hidden></div>
+<div class="typemenu" id="typemenu" role="menu" aria-label="Change type" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The local WorkDesk pages may hide their own window (quick add).",
+  "windows": ["main", "quick"],
+  "remote": { "urls": ["http://localhost:4321/*", "http://127.0.0.1:4321/*"] },
+  "permissions": ["core:window:allow-hide"]
+}

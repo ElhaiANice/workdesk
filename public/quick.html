@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quick add</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<style>
+  :root{--bg:#fff;--fg:#1c1b22;--muted:#6b6a76;--line:#d9d8e0;--accent:#5b4df0;--ok:#1d8a5b}
+  @media (prefers-color-scheme:dark){:root{--bg:#1a1a20;--fg:#ececf2;--muted:#9a99a8;--line:#34343e;--accent:#8c82ff;--ok:#4cc38a}}
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;gap:10px;padding:0 20px;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,"Segoe UI",sans-serif}
+  .row{display:flex;align-items:center;gap:10px}
+  img{width:28px;height:28px}
+  input{flex:1;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px}
+  small{color:var(--muted);min-height:1.2em}
+  small.ok{color:var(--ok)}
+</style>
+</head>
+<body>
+  <form class="row" id="f"><img src="/logo.svg" alt=""><input id="q" autocomplete="off" spellcheck="true" placeholder="Capture a task: add ! to flag it as important" aria-label="Task title" autofocus></form>
+  <small id="m">Enter to add to your Pending · Esc to close</small>
+<script>
+const q = document.getElementById('q'), m = document.getElementById('m');
+const close = () => { try { window.__TAURI_INTERNALS__.invoke('plugin:window|hide'); } catch { window.close(); } };
+const say = (t, ok) => { m.textContent = t; m.className = ok ? 'ok' : ''; };
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  let title = q.value.trim(); if (!title) return;
+  const important = /(^|\s)!+(\s|$)|!$/.test(title);
+  title = title.replace(/(^|\s)!+(?=\s|$)|!+$/g, ' ').replace(/\s+/g, ' ').trim();
+  title = title[0].toUpperCase() + title.slice(1);
+  try {
+    const r = await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, important, status: 'inbox' }) });
+    if (!r.ok) throw new Error((await r.json()).error || r.status);
+    say('Added: ' + title, true); q.value = '';
+    setTimeout(() => { close(); say('Enter to add to your Pending · Esc to close'); }, 450);
+  } catch (err) { say('Could not add: ' + err.message); }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { q.value = ''; close(); } });
+window.addEventListener('focus', () => { q.focus(); q.select(); });
+</script>
+</body>
+</html>
