@@ -137,7 +137,7 @@ const tool = async (name, args) => { const r = await rpc('tools/call', { name, a
 
   // re-sync is idempotent; local-only state survives; Jira changes flow in
   r = await j('POST', '/api/jira/sync'); assert.deepEqual([r.d.created, r.d.updated, r.d.unchanged], [0, 0, 3]);
-  await j('PATCH', '/api/tasks/' + t10.id, { status: 'waiting', who: 'Ops', body: 'my notes\n' });
+  { const f = path.join(tmp, t10.id + '.md'), t = fs.readFileSync(f, 'utf8'), i = t.indexOf('\n---\n', 4); fs.writeFileSync(f, t.slice(0, i).replace(/^status: .*$/m, 'status: waiting') + '\nwho: Ops\n---\nmy notes\n'); await new Promise((r) => setTimeout(r, 150)); } // local-only state written directly: the mock workflow would refuse a move to waiting
   mine[0].fields.summary = 'Mine one (renamed)'; mine[2].fields.status.statusCategory.key = 'done';
   r = await j('POST', '/api/jira/sync'); assert.deepEqual([r.d.created, r.d.updated, r.d.unchanged], [0, 2, 1]);
   const t10b = (await j('GET', '/api/tasks/' + t10.id)).d;
@@ -183,7 +183,8 @@ const tool = async (name, args) => { const r = await rpc('tools/call', { name, a
   capRule = false;
   await pj('review'); // back where the next checks expect it
   w = await pj('waiting');
-  assert.equal(w._jira.ok, false); assert.match(w._jira.error, /no step/); assert.equal(w.status, 'waiting');
+  assert.equal(w._jira.ok, false); assert.match(w._jira.error, /Flagged/); assert.equal(w.status, 'done'); // no Flagged field in the mock: waiting is refused; unchanged: jira-move never changes the task when Jira says no
+  { const pr = (await j('PATCH', `/api/tasks/${t10id}`, { status: 'waiting' })).d; assert.equal(pr.status, 'done'); assert.equal(pr._jira.ok, false); assert.match(pr._jira.error, /Flagged/); } // a board move Jira refuses is rolled back and reported
   assert.equal(JSON.parse(JSON.stringify((await j('PATCH', '/api/tasks/' + made2, { status: 'done' })).d))._jira, undefined); // task without a ticket
   // status + connection test
   const st = (await j('GET', '/api/jira/status')).d;

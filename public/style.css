@@ -287,3 +287,16 @@ dialog.ask .checks{display:flex;flex-wrap:wrap;gap:6px}
 dialog.ask .checks label{margin:0;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 12px;border:1px solid var(--line);border-radius:999px;font-weight:500;cursor:pointer}
 dialog.ask .checks input{width:auto;min-height:0}
 dialog.ask .checks label:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+.jmove{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
+.jmove select{max-width:60%}
+.multi .msearch{width:100%;margin:6px 0}
+.multi .mlist{max-height:220px;overflow:auto;border:1px solid var(--line,#ddd);border-radius:8px;padding:4px}
+.multi .mlist label{display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;cursor:pointer}
+.multi .mlist label:hover{background:rgba(127,127,127,.12)}
+.multi .mlist label[hidden]{display:none}
+.multi .mcount{display:block;margin-top:4px;opacity:.7}
+dialog.ask .multi .mlist label{margin:0;display:flex;justify-content:flex-start;text-align:left;gap:10px;min-height:0;padding:6px 10px;font-weight:500;width:100%}
+dialog.ask .multi .mlist input{width:16px;height:16px;min-height:0;padding:0;margin:0;flex:none}
+dialog.ask .multi .mlist label:has(input:checked){background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+dialog.ask .multi .mlist label[hidden]{display:none}
+dialog.ask .multi .mlist{display:grid;gap:0}

@@ -55,12 +55,26 @@ function readBody(req) {
 async function api(req, res, url) {
   const m = /^\/api\/tasks(?:\/([^/]+))?$/.exec(url.pathname);
   if (url.pathname === '/api/config') return send(res, 200, { version: VERSION, types: tasks.TYPES, statuses: tasks.STATUSES, typeFields: tasks.TYPE_FIELDS, rules: tasks.RULES, today: tasks.today(), dir: tasks.DIR });
+  const tm = /^\/api\/tasks\/([^/]+)\/jira-transitions$/.exec(url.pathname);
+  if (tm) return send(res, 200, await jira.transitionsFor(tasks.read(tm[1])));
+  const gm = /^\/api\/tasks\/([^/]+)\/jira-step$/.exec(url.pathname);
+  if (gm && req.method === 'POST') {
+    const { transition } = await readBody(req);
+    const push = await jira.pushStatus(tasks.read(gm[1]), null, {}, transition);
+    if (!push) throw Object.assign(new Error('This task has no Jira ticket to move.'), { status: 400 });
+    if (!push.ok) return send(res, 200, { ...tasks.read(gm[1]), _jira: push });
+    return send(res, 200, { ...tasks.update(gm[1], { status: push.local }), _jira: push });
+  }
   // Retry a move that Jira refused, with the field values the user filled in. Only a successful Jira move changes the local status.
   const jm = /^\/api\/tasks\/([^/]+)\/jira-move$/.exec(url.pathname);
   if (jm && req.method === 'POST') {
     const { status, fields = {} } = await readBody(req);
     if (!tasks.STATUSES.includes(status)) throw Object.assign(new Error('Unknown status'), { status: 400 });
-    const push = await jira.pushStatus(tasks.read(jm[1]), status, fields);
+    // Answers from earlier rounds of this move are remembered for ten minutes, so Jira can ask for fields one at a time.
+    const mem = (globalThis.__moveAnswers ||= {}), m = mem[jm[1]];
+    const given = { ...(m && Date.now() - m.at < 600000 ? m.fields : {}), ...fields };
+    const push = await jira.pushStatus(tasks.read(jm[1]), status, given);
+    mem[jm[1]] = push && push.ok ? undefined : { at: Date.now(), fields: given };
     if (!push) throw Object.assign(new Error('This task has no Jira ticket to move.'), { status: 400 });
     if (!push.ok) return send(res, 200, { ...tasks.read(jm[1]), _jira: { ...push, to: status } });
     return send(res, 200, { ...tasks.update(jm[1], { status }), _jira: push });
@@ -112,8 +126,8 @@ async function api(req, res, url) {
       const patch = await readBody(req), before = tasks.read(id), t = tasks.update(id, patch);
       // Moving a Jira-linked task moves the ticket too; the outcome rides along so the UI can say what happened.
       const push = patch.status && patch.status !== before.status ? await jira.pushStatus(t, t.status) : null;
-      // Jira refused for missing fields: undo the local move so both sides agree, and hand the UI the fields to ask for.
-      if (push?.needs) return send(res, 200, { ...tasks.update(id, { status: before.status, order: before.order ?? '', done: before.done ?? '' }), _jira: { ...push, from: before.status, to: patch.status } });
+      // Jira did not take the move (missing fields, no such step, error, timeout): undo the local move so both sides agree, and report why.
+      if (push && !push.ok) return send(res, 200, { ...tasks.update(id, { status: before.status, order: before.order ?? '', done: before.done ?? '' }), _jira: { ...push, from: before.status, to: patch.status } });
       return send(res, 200, push ? { ...(push.to ? tasks.read(id) : t), _jira: push } : t);
     }
     if (req.method === 'DELETE') { tasks.remove(id); return send(res, 200, { ok: true }); }

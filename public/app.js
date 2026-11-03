@@ -16,7 +16,8 @@ function toast(msg, act) {
     b.onclick = async () => { t.hidden = true; try { await act.fn(); } catch (e) { toast(e.message); } };
     t.append(' ', b);
   }
-  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, act ? 7000 : 4000);
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, act ? 7000 : Math.min(30000, 8000 + msg.length * 120)); // longer messages stay longer
+  t.onclick = (e) => { if (e.target === t) t.hidden = true; };
 }
 const guard = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message); } };
 
@@ -228,7 +229,7 @@ async function patch(id, body, quiet) {
   const j = t._jira; delete t._jira;
   if (i >= 0) state.tasks[i] = t;
   if (j?.needs) jiraAsk(t, j); // Jira refused for missing fields; the server already undid the move
-  else if (j && !j.ok) toast(j.error);
+  else if (j && !j.ok) toast('Not moved, back to "' + (j.from || 'where it was') + '". ' + j.error);
   else if (j?.to) toast(`Jira ticket moved to "${j.to}"`);
   if (!quiet) { render(); renderDrawer(); }
 }
@@ -241,7 +242,7 @@ function jiraAsk(t, j) {
   const input = (f) => {
     const a = `name="${esc(f.id)}" id="ja-${esc(f.id)}" required`;
     if (f.kind === 'pick') return `<select ${a}><option value="">Choose…</option>${f.options.map((o) => `<option value="${esc(o.id)}" ${keep[f.id] === o.id ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
-    if (f.kind === 'multi') return `<div class="checks" role="group" id="ja-${esc(f.id)}" aria-label="${esc(f.name)}">${f.options.map((o) => `<label><input type="checkbox" name="${esc(f.id)}" value="${esc(o.id)}"> ${esc(o.label)}</label>`).join('')}</div>`;
+    if (f.kind === 'multi') return `<div class="multi" id="ja-${esc(f.id)}"><input type="search" class="msearch" placeholder="Search ${esc(f.name.toLowerCase())}… (*195 = ends with, 26.* = starts with)" autocomplete="off"><div class="mlist" role="group" aria-label="${esc(f.name)}">${f.options.map((o) => `<label data-t="${esc(o.label.toLowerCase())}"><input type="checkbox" name="${esc(f.id)}" value="${esc(o.id)}"> ${esc(o.label)}</label>`).join('')}</div><small class="mcount">Nothing selected</small></div>`;
     const type = { number: 'number', date: 'date', datetime: 'datetime-local' }[f.kind] || 'text';
     const ph = { user: state.jira.status?.auth === 'personal access token' ? 'Jira username' : 'Atlassian account id', list: 'Comma separated' }[f.kind] || '';
     return `<input ${a} type="${type}" placeholder="${esc(ph)}" value="${esc(keep[f.id] || '')}">`;
@@ -256,6 +257,27 @@ function jiraAsk(t, j) {
     <div class="acts"><button class="btn" value="go">Move in Jira</button><button class="btn ghost" value="cancel" formnovalidate>Keep in ${esc(from)}</button>${j.link ? `<a class="link" href="${esc(j.link)}" target="_blank" rel="noopener">Open in Jira</a>` : ''}</div>
   </form>`;
   const form = dlg.querySelector('form');
+  // Searchable multi-pick: plain text matches anywhere, "*195" ends with, "26.*" starts with, "a*b" both.
+  const hit = (text, q) => {
+    if (!q) return true;
+    if (!q.includes('*')) return text.includes(q);
+    const parts = q.split('*'), first = parts[0], last = parts[parts.length - 1];
+    if (parts.length > 2) return parts.filter(Boolean).every((p) => text.includes(p));
+    return text.startsWith(first) && text.endsWith(last) && text.length >= first.length + last.length;
+  };
+  for (const box of form.querySelectorAll('.multi')) {
+    const search = box.querySelector('.msearch'), count = box.querySelector('.mcount');
+    const sync = () => {
+      const q = search.value.trim().toLowerCase();
+      for (const l of box.querySelectorAll('.mlist label')) l.hidden = !hit(l.dataset.t, q);
+      const n = box.querySelectorAll('input[type=checkbox]:checked').length, shown = box.querySelectorAll('.mlist label:not([hidden])').length;
+      count.textContent = `${n ? n + ' selected' : 'Nothing selected'} · ${shown} shown`;
+    };
+    search.addEventListener('input', sync);
+    search.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); const one = box.querySelectorAll('.mlist label:not([hidden]) input'); if (one.length === 1) { one[0].checked = !one[0].checked; sync(); } } });
+    box.addEventListener('change', sync);
+    sync();
+  }
   form.addEventListener('submit', async (e) => {
     if (e.submitter?.value !== 'go') return; // Cancel and Esc just close
     e.preventDefault();
@@ -266,11 +288,12 @@ function jiraAsk(t, j) {
     if (empty) { err.textContent = `Pick at least one ${empty.name}.`; form.querySelector(`input[name="${CSS.escape(empty.id)}"]`)?.focus(); return; }
     btn.disabled = true; btn.textContent = 'Moving…'; err.textContent = '';
     try {
-      const r = await call('POST', `/api/tasks/${encodeURIComponent(t.id)}/jira-move`, { status: j.to, fields });
+      const all = { ...(j.prior || {}), ...fields }; // answers from earlier rounds stay: Jira may ask for more fields after each one
+      const r = await call('POST', `/api/tasks/${encodeURIComponent(t.id)}/jira-move`, { status: j.to, fields: all });
       const res = r._jira; delete r._jira;
       const i = state.tasks.findIndex((x) => x.id === t.id); if (i >= 0) state.tasks[i] = r;
       if (res.ok) { dlg.close(); render(); renderDrawer(); toast(`${j.needs.key} moved to "${res.to || to}" in Jira`); return; }
-      if (res.needs) { jiraAsk(r, { ...res, from: j.from }); dlg.querySelector('.err').textContent = 'Jira still needs: ' + res.needs.fields.map((f) => f.name).join(', '); return; }
+      if (res.needs) { jiraAsk(r, { ...res, from: j.from, to: j.to, prior: all }); dlg.querySelector('.err').textContent = 'Jira still needs: ' + res.needs.fields.map((f) => f.name).join(', '); return; }
       err.textContent = res.error;
     } catch (x) { err.textContent = x.message; }
     btn.disabled = false; btn.textContent = 'Move in Jira';
@@ -467,9 +490,11 @@ $('list').addEventListener('drop', guard(async (e) => {
 
 // Archive: drop a card (or the selection) on the Archive tray at the right edge.
 async function archive(ids, on) {
-  const prev = ids.map((id) => state.tasks.find((t) => t.id === id)).filter((t) => t && isArch(t) !== on);
+  // An epic takes its stories along, both ways (archive and restore).
+  const withKids = [...new Set(ids.flatMap((id) => { const e = state.tasks.find((t) => t.id === id); return e && e.type === 'epic' ? [id, ...state.tasks.filter((t) => t.type !== 'epic' && t.epic && t.epic === epicKey(e)).map((t) => t.id)] : [id]; }))];
+  const prev = withKids.map((id) => state.tasks.find((t) => t.id === id)).filter((t) => t && isArch(t) !== on);
   for (const t of prev) await patch(t.id, { archived: on }, true);
-  if (state.open && on && ids.includes(state.open)) state.open = null;
+  if (state.open && on && withKids.includes(state.open)) state.open = null;
   render(); renderDrawer();
   if (prev.length) toast(`${on ? 'Archived' : 'Restored'} ${prev.length > 1 ? prev.length + ' tasks' : '"' + prev[0].title + '"'}`, { label: 'Undo', fn: async () => { for (const t of prev) await patch(t.id, { archived: !on }, true); render(); renderDrawer(); } });
 }
@@ -775,10 +800,10 @@ document.addEventListener('keydown', (e) => {
 async function runUpdate(info) {
   if (!confirm(`Update WorkDesk to ${info.latest}? ${info.edition === 'web' ? 'WorkDesk restarts in its window and this page reloads' : 'The app closes and reopens by itself'}. Your tasks and settings are kept.`)) return 'Cancelled.';
   try { await call('POST', '/api/update/apply'); } catch (err) { return err.message; }
-  const was = S.data.version;
+  const was = (S.data && S.data.version) || state.cfg?.version || '';
   for (let n = 0; n < 90; n++) {
     await new Promise((r) => setTimeout(r, 2000));
-    try { const c = await fetch('/api/config').then((r) => r.json()); if (c.version && c.version !== was) { location.reload(); return ''; } } catch { /* restarting */ }
+    try { const c = await fetch('/api/config').then((r) => r.json()); if (c.version && (c.version === info.latest || c.version !== was)) { location.reload(); return ''; } } catch { /* restarting */ }
   }
   return 'Still not back. Open WorkDesk.exe manually; see update.log next to it.';
 }
