@@ -1,9 +1,25 @@
 # WorkDesk
 
-Local task manager for epics you own, stories on other people's epics, tech tasks, PR reviews, follow-ups and meetings.
-Tasks are Markdown files in `tasks/`. No dependencies, no build step (Node 20+).
+![WorkDesk board with sample tasks](docs/workdesk-demo.png)
 
-## Run
+Local task manager for epics you own, stories on other people's epics, tech tasks, PR reviews, follow-ups and meetings.
+Tasks are Markdown files in `tasks/`. No dependencies, no build step (Node 20+). Optional two-way Jira sync, a Claude (MCP) connection and self-updating releases.
+
+## Get it (Windows)
+
+1. Download **[WorkDesk-web.zip](https://github.com/ElhaiANice/workdesk/releases/latest/download/WorkDesk-web.zip)**, the newest version. It needs [Node.js](https://nodejs.org) 20 or newer and nothing else.
+2. Unzip it somewhere permanent (not a OneDrive folder), for example `C:\Users\<you>\WorkDesk`, and double-click **Start WorkDesk.cmd**. WorkDesk opens at http://127.0.0.1:4321/. Keep the small window open, minimised.
+3. In Edge: **(…) > Apps > Install this site as an app** for its own window, logo and taskbar icon.
+
+Or from PowerShell, in one step:
+
+```
+curl.exe -L --ssl-no-revoke -o WorkDesk-web.zip https://github.com/ElhaiANice/workdesk/releases/latest/download/WorkDesk-web.zip
+```
+
+Updates install themselves: WorkDesk shows **Update now** when a new version is out; your tasks and settings are kept. A desktop edition with a tray icon and a global quick-add hotkey is also on the [releases page](https://github.com/ElhaiANice/workdesk/releases/latest) (`WorkDesk-Setup.exe`; it may be blocked on managed PCs).
+
+## Run from source
 
 ```
 npm start          # http://localhost:4321
@@ -69,8 +85,7 @@ To pull Jira stories through Claude instead of the REST import, ask it to read t
 
 ## Desktop app (Tauri)
 
-`desktop/` wraps the same server in a native window (Rust + Edge WebView2, small exe) with a tray icon, the Ctrl+Alt+N quick-add window and start-with-Windows. It starts `node server.js` (or the bundled `node
-ode.exe` in the shared folder), and stops it when you choose Quit. If `npm start` is already running it reuses that server.
+`desktop/` wraps the same server in a native window (Rust + Edge WebView2, small exe) with a tray icon, the Ctrl+Alt+N quick-add window and start-with-Windows. It starts `node server.js` (or the bundled `node\node.exe` in the shared folder), and stops it when you choose Quit. If `npm start` is already running it reuses that server.
 
 ```
 cd desktop
@@ -93,7 +108,7 @@ The folder has `WorkDesk.exe` in its root, `.env.example`, `tasks/`, `app/` (pro
 
 **Settings page:** every `.env` option (Jira connection, JQL, write-back, automatic sync times and days, update source, repos folder) can be edited under Settings and applies at once, no restart. Secrets are write-only: the page never shows a saved token. The **Refresh** button (or `R`) reloads tasks and, when Jira is set up, syncs it.
 
-**Updating from inside the app:** releases are published to GitHub (`workdesk.updateRepo` in `package.json`). A public repo needs no sign-in: copies read each release's `latest.json` through plain download links, which the GitHub API rate limit does not apply to; a private repo works too, through the API with a token. To ship a version: bump the version, build, `node scripts/package.js`, then `node scripts/publish.js` (needs the `gh` CLI signed in; creates the repo the first time). Every installed copy checks at start, shows an "Update now" banner, and installs in one click (Settings > Updates has the same button). Private repo: the machine needs `gh auth login` or a GitHub token in Settings. WorkDesk closes, installs, and reopens itself; tasks and settings are kept. "Update source (advanced)" can point at another repo, a shared folder, or a `latest.json` link instead.
+**Updating from inside the app:** releases are published to GitHub (`workdesk.updateRepo` in `package.json`). Each release goes to that repo (this one) and to the repos in `workdesk.alsoPublishTo`, which older installed copies still read; it also carries copies without the version in the name (`WorkDesk-web.zip`, `WorkDesk-Setup.exe`, `WorkDesk.zip`) so the `releases/latest/download/<name>` links never change. A public repo needs no sign-in: copies read each release's `latest.json` through plain download links, which the GitHub API rate limit does not apply to; a private repo works too, through the API with a token. To ship a version: bump the version, build, `node scripts/package.js`, then `node scripts/publish.js` (needs the `gh` CLI signed in; creates the repo the first time). Every installed copy checks at start, shows an "Update now" banner, and installs in one click (Settings > Updates has the same button). Private repo: the machine needs `gh auth login` or a GitHub token in Settings. WorkDesk closes, installs, and reopens itself; tasks and settings are kept. "Update source (advanced)" can point at another repo, a shared folder, or a `latest.json` link instead.
 
 **No-exe edition (for PCs that block unsigned exes):** every release also ships `WorkDesk-web-x.y.z.zip` (about 0.1 MB): the same app with `Start WorkDesk.cmd` instead of the exe. It runs on the Node.js already installed (20+), opens in the browser at http://127.0.0.1:4321/, and Edge's "Install this site as an app" gives it its own window. It updates itself like the exe: "Update now" installs `WorkDesk-web-<latest>.zip` in place, the server exits with code 75, and `Start WorkDesk.cmd` starts the new version in the same window; the page reloads. Build only this one with `node scripts/package.js --web-only`.
 

@@ -1,7 +1,7 @@
 {
   "name": "workdesk-desktop",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.4.2",
   "scripts": { "dev": "tauri dev", "build": "tauri build", "icon": "tauri icon app-icon.png" },
   "devDependencies": { "@tauri-apps/cli": "^2" }
 }

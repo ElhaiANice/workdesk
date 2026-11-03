@@ -1,6 +1,6 @@
 {
   "name": "workdesk",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Local task manager: epics, stories, tech tasks, reviews, follow-ups. Markdown files on disk.",
   "private": true,
   "scripts": {
@@ -14,7 +14,10 @@
     "node": ">=20"
   },
   "workdesk": {
-    "updateRepo": "ElhaiANice/workdesk-releases"
+    "updateRepo": "ElhaiANice/workdesk",
+    "alsoPublishTo": [
+      "ElhaiANice/workdesk-releases"
+    ]
   },
   "license": "MIT"
 }
